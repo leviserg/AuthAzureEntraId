@@ -103,10 +103,6 @@
 	> az ad app delete --id `WeatherApi` Id e.g. 04f0f376-6802-4853-a970-37d1d437deec
 		# WeatherApiClient app registration deletion
 	> az ad app delete --id `WeatherApiClient` Id - e.g. 79b1b181-df8f-49c3-be14-5f9e6f62e9a7
-
-
-
-
 	
 
 			
