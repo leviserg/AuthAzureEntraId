@@ -1,0 +1,112 @@
+
+1. Register the Web API App in AzurePortal within your subscription:
+	Go to Microsoft Entra ID 
+		> App registrations 
+			+ Add registration
+				Name: WeatherApi,
+				Supported account types: single tenant only,
+				{Redirect URI Platform `Web` - optional}
+
+2. Open App registrations. Select `WeatherApi`. Open
+	> Manage 
+		> Expose an API:
+			+ Add Application ID URI (e.g., api://<client-id>).
+			+ Add a scope:
+				Scope name: Weather.Read
+				Who can consent?: Admins and users
+				Admin consent display name: Read Weather Data
+				Admin consent description: Allows the application to read weather forecasts on behalf of the signed-in user.
+				State: Enabled
+		> App roles:
+			+ Create app role: (for External Daemon Apps)
+				Display name: Read Weather Data App Role
+				Allowed member types: Applications
+				Value: Weather.Read.All
+				Description: Allows the application to read weather forecasts on behalf of the signed-in user.
+				Enable: true
+				
+3. Create application. Install Microsoft.Identity.Web nuget package.
+	Set up Authentication, Authorization usage.
+	Set up Constants in appsettings.json & project secrets from created app registration.
+	Apply project changes, write unit tests, run in debug mode.
+
+4. Registering other Client Application 
+	> App registrations 
+		+ Add Registration
+			Name: WeatherApiClient
+	> Open created registration
+		> Certificates & Secrets
+			+ Add Client Secret: (copy created secret value)
+				description: (any)
+		> Api permissions
+			+ Add a permission
+				`WeatherApi` registered app + Application permissions `Weather.Read.All`
+				`WeatherApi` registered app + Delegated permissions `Weather.Read`
+		> Authentication
+			+ Add redirect URI https://oauth.pstmn.io/v1/callback of type Web
+
+5. Check with Postman when Debug mode:
+	GET: localhost:7191/api/weather?city=Tokyo
+	Authorization: OAuth 2.0
+		+ Configure New Token:
+			Token Name				: WeatherApiUserToken
+			Grant type				: Authorization Code
+			Callback URL			: https://oauth.pstmn.io/v1/callback
+			Auth URL				: https://login.microsoftonline.com/{TenantId}/oauth2/v2.0/authorize
+			Access Token URL		: https://login.microsoftonline.com/{TenantId}/oauth2/v2.0/token
+			Client ID				: `WeatherApiClient` App Registration Client ID
+			Client Secret			: `WeatherApiClient` App Registration Client Secret value
+			Scope					: api://{`WeatherApi` Id {AzureAd:ClientId}}/Weather.Read
+			Client Authentication	: Send client credentials in body
+	Click `Get New Access Token` proceed with Authentication, then click `Use Token` and then send the request.
+
+6. Deployment using azure CLI (In PS terminal):
+	> dotnet build
+	> dotnet test
+	> az login
+		use your account + select subscription
+	> az group list -o table
+	> az appservice plan create --name plan-weatherapi --resource-group <resource-group-name> --sku F1 --is-linux
+	> az webapp list-runtimes --os-type linux {select appropriate runtime}
+	> az webapp create --name my-weather-api-sandbox-serhii --resource-group <resource-group-name> --plan plan-weatherapi --runtime "DOTNETCORE:10.0"
+
+	> Remove-Item .\azure-publish -Recurse -Force -ErrorAction SilentlyContinue
+	> dotnet publish .\WeatherApi\WeatherApi.csproj -c Release -o .\azure-publish
+	> Compress-Archive -Path .\azure-publish\* -DestinationPath .\WeatherApi.zip -Force  {bash: cd azure-publish && zip -r ../WeatherApi.zip . && cd ..}
+	> tar -tf .\WeatherApi.zip {verify archive content}
+	> az webapp deploy --resource-group <resource-group-name> --name my-weather-api-sandbox-serhii --src-path .\WeatherApi.zip --type zip --verbose
+	> az webapp config appsettings set --resource-group <resource-group-name> --name my-weather-api-sandbox-serhii --settings`
+		AzureAd__TenantId="FROM-SECRETS"`
+		AzureAd__ClientId="FROM-SECRETS"`
+		AzureAd__Audience="api://FROM-SECRETS"`
+		AzureAd__Scopes="Weather.Read"`
+		AzureAd__AppRoles="Weather.Read.All"`
+		AzureAd__Instance="https://login.microsoftonline.com/" 
+		OpenWeather__BaseUrl="https://api.openweathermap.org/data/2.5/"`
+		OpenWeather__ApiKey="FROM-SECRETS"`
+
+	> az webapp config set --resource-group <resource-group-name> --name my-weather-api-sandbox-serhii --startup-file "dotnet WeatherApi.dll"
+	> az webapp restart --resource-group <resource-group-name> --name my-weather-api-sandbox-serhii
+	======
+	SSH:
+	> az webapp ssh --resource-group <resource-group-name> --name my-weather-api-sandbox-serhii
+7. Test deployed app with Postman:
+	GET https://my-weather-api-sandbox-serhii.azurewebsites.net/api/weather?city=Vinnytsia
+	Authorization: OAuth 2.0
+		... same as in step 5
+	======
+8 Cleanup:
+	> az webapp delete --resource-group <resource-group-name> --name my-weather-api-sandbox-serhii
+	> az appservice plan delete --resource-group <resource-group-name> --name plan-weatherapi
+		
+		# WeatherApi app registration deletion
+	> az ad app delete --id `WeatherApi` Id e.g. 04f0f376-6802-4853-a970-37d1d437deec
+		# WeatherApiClient app registration deletion
+	> az ad app delete --id `WeatherApiClient` Id - e.g. 79b1b181-df8f-49c3-be14-5f9e6f62e9a7
+
+
+
+
+	
+
+			
