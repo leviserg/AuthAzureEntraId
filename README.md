@@ -1,0 +1,3 @@
+- Microsoft Azure EntraId authentication set up (see notes.txt)
+- Cached service working with HttpClient (concurrent cache + semaphore for eliminating race condition when high throughput)
+- Azure CLI commands for build/test/deploy/set-up app service
